@@ -6,3 +6,27 @@
     encoding: "{{ item.encoding | default('utf8') }}"
     state: "{{ item.state | default('present') }}"
   with_items: "{{ mysql_databases }}"
+  register: databaseResults
+
+- name: Dump file from Master DB
+  # later we should include "--master-data=2" here
+  shell: "mysqldump --host={{ mysql_replication_master | quote }} --user={{ mysql_replication_user.name | quote }} --password={{ mysql_replication_user.password | quote }} --single-transaction {{ item.db }} > /tmp/{{ item.db }}.sql"
+  when: >
+    item.changed == true
+    and (mysql_replication_role == 'importFromMaster')
+    and (mysql_replication_master != '')
+  with_items: "{{ databaseResults.results }}"
+  changed_when: item.changed == true
+
+- name: import file from Master DB
+  mysql_db:
+    single_transaction: 'yes'
+    state: "import"
+    name: "{{ item.db }}"
+    target: "/tmp/{{ item.db }}.sql"
+  when: >
+    item.changed == true
+    and (mysql_replication_role == 'importFromMaster')
+    and (mysql_replication_master != '')
+  with_items: "{{ databaseResults.results }}"
+  changed_when: item.changed == true
