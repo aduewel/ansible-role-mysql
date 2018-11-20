@@ -56,10 +56,19 @@ binlog_ignore_db = {{ db.name }}
 {% endfor %}
 {% endif %}
 
-{% if mysql_replication_role == 'slave' %}
+{% if mysql_replication_role == 'slave' or mysql_replication_role == 'importFromMaster' %}
 read_only
 relay-log = relay-bin
 relay-log-index = relay-bin.index
+
+{% for db in mysql_databases %}
+{% if db.replicate|default(1) %}
+replicate-do-db = {{ db.name }}
+{% else %}
+replicate_ignore_db = {{ db.name }}
+{% endif %}
+{% endfor %}
+
 {% endif %}
 {% endif %}
 
